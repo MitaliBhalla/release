@@ -1,9 +1,29 @@
+base_images:
+  ubi9-minimal:
+    name: ubi-minimal
+    namespace: ocp
+    tag: "9"
 build_root:
   from_repository: true
   use_build_cache: true
 images:
   items:
-  - dockerfile_path: Containerfile
+  - dockerfile_literal: |
+      FROM src AS builder
+      USER root
+      WORKDIR /go/src/github.com/openshift-online/rosa-hyperfleet-kube-applier
+      RUN CGO_ENABLED=0 GOOS=linux go build -o /kube-applier-aws .
+      FROM ubi9-minimal
+      COPY --from=builder /kube-applier-aws /kube-applier-aws
+      USER 65532:65532
+      ENTRYPOINT ["/kube-applier-aws"]
+    inputs:
+      src:
+        as:
+        - src
+        paths:
+        - destination_dir: .
+          source_path: /go/src/github.com/openshift-online/rosa-hyperfleet-kube-applier
     to: kube-applier-aws
 resources:
   '*':
